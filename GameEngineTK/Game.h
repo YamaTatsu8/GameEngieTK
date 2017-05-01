@@ -11,7 +11,9 @@
 #include <Effects.h>
 #include <CommonStates.h>
 #include <SimpleMath.h>
+#include <Model.h>
 
+const int MAX_BALL = 20;
 
 
 // A basic game implementation that creates a D3D11 device and
@@ -77,6 +79,19 @@ private:
 	DirectX::SimpleMath::Matrix m_world;
 	DirectX::SimpleMath::Matrix m_view;
 	DirectX::SimpleMath::Matrix m_proj;
+
+	//エフェクト
+	std::unique_ptr<DirectX::EffectFactory> m_factory;
+
+	//地面
+	std::unique_ptr<DirectX::Model>m_Ground;
+	//空
+	std::unique_ptr<DirectX::Model>m_Skydome;
+	//球
+	std::unique_ptr<DirectX::Model>m_ball;
+
+	//球のワールド行列
+	DirectX::SimpleMath::Matrix m_worldBall[MAX_BALL];
 
 	//デバッグカメラ
 	std::unique_ptr<DebugCamera> m_debugCamera;

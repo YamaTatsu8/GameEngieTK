@@ -14,8 +14,27 @@ using namespace DirectX::SimpleMath;
 using Microsoft::WRL::ComPtr;
 
 //グローバル変数
-
-
+//std::unique_ptr<PrimitiveBatch<VertexPositionNormal>>g_pPrimitiveBatch;
+//
+////ポリゴン表示入力レイアウト
+//std::unique_ptr<DirectX::BasicEffect>g_pPolygonEffect;
+////ポリゴン表示用入力レイアウト
+//ComPtr<ID3D11InputLayout> g_pPolygonInputLayout;
+//
+////頂点インデックス
+//uint16_t indices[] =
+//{
+//	0,1,2,
+//	2,1,3,
+//};
+////頂点座標
+//VertexPositionNormal vertices[] =
+//{
+//	{Vector3(-1.0f,+1.0f,0.0f),Vector3(0.0f,0.0f,+1.0f)},
+//	{ Vector3(-1.0f,-1.0f,0.0f),Vector3(0.0f,0.0f,+1.0f) },
+//	{ Vector3(+1.0f,+1.0f,0.0f),Vector3(0.0f,0.0f,+1.0f) },
+//	{ Vector3(+1.0f,-1.0f,0.0f),Vector3(0.0f,0.0f,+1.0f) },
+//};
 
 Game::Game() :
 	m_window(0),
@@ -48,10 +67,10 @@ void Game::Initialize(HWND window, int width, int height)
 	
 	m_Effect = std::make_unique<BasicEffect>(m_d3dDevice.Get());
 
-	m_view = Matrix::CreateLookAt(Vector3(0.f, 2.f, 5.f),
+	m_view = Matrix::CreateLookAt(Vector3(0.0f, 2.0f, 5.0f),
 		Vector3::Zero, Vector3::UnitY);
 	m_proj = Matrix::CreatePerspectiveFieldOfView(XM_PI / 4.f,
-		float(m_outputWidth) / float(m_outputHeight), 0.1f, 10.f);
+		float(m_outputWidth) / float(m_outputHeight), 0.1f, 500.f);
 
 	m_Effect->SetView(m_view);
 	m_Effect->SetProjection(m_proj);
@@ -59,6 +78,7 @@ void Game::Initialize(HWND window, int width, int height)
 	void const* shaderByteCode;
 	size_t byteCodeLength;
 
+	//エフェクト
 	m_Effect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
 
 	m_d3dDevice->CreateInputLayout(VertexPositionColor::InputElements,
@@ -68,6 +88,20 @@ void Game::Initialize(HWND window, int width, int height)
 
 	//デバッグカメラ生成
 	m_debugCamera = std::make_unique<DebugCamera>(m_outputWidth,m_outputHeight);
+
+	//エフェクトファクトリを作成
+	m_factory = std::make_unique<EffectFactory>(m_d3dDevice.Get());
+	//テクスチャの読込パス
+	m_factory->SetDirectory(L"Resources");
+
+	//モデルの読み込み
+	m_Ground = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Ground1m.cmo", *m_factory);
+	//背景
+	m_Skydome = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Skydome.cmo", *m_factory);
+	//球
+
+	
+	m_ball = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/ball.cmo", *m_factory);
 
 }
 
@@ -96,6 +130,34 @@ void Game::Update(DX::StepTimer const& timer)
 	//view行列を取得
 	m_view = m_debugCamera->GetCameraMatrix();
 
+	for (int i = 0; i < MAX_BALL; i++)
+	{
+		//球のワールド行列を計算
+		//スケーリング(縮尺）
+		Matrix scalemat = Matrix::CreateScale(1.0f);
+		//ロール
+		Matrix rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+		//ピッチ(仰角）
+		Matrix rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+		//ヨー(方位角)
+		Matrix rotmaty = Matrix::CreateRotationY(XMConvertToRadians(36.0f*i));
+		//回転行列(合成)
+		Matrix rotmat = rotmatz*rotmatx*rotmaty;
+		//平行移動
+		Matrix transmat;
+		if (i<10)
+		{
+			transmat = Matrix::CreateTranslation(32.0f, 0.0f, 20.0f);
+		}
+		else
+		{
+			transmat = Matrix::CreateTranslation(32.0f, 0.0f, 40.0f);
+		}
+		
+
+		m_worldBall[i] = transmat*rotmat*scalemat;
+
+	}
 }
 
 // Draws the scene.
@@ -123,13 +185,23 @@ void Game::Render()
 	m_Effect->Apply(m_d3dContext.Get());
 	m_d3dContext->IASetInputLayout(m_inputLayout.Get());
 
+	//モデルの描画
+	m_Ground->Draw(m_d3dContext.Get(), m_states, m_world, m_view, m_proj);
+
+	m_Skydome->Draw(m_d3dContext.Get(), m_states, m_world, m_view, m_proj);
+
+	for (int i = 0; i < MAX_BALL; i++)
+	{
+		m_ball->Draw(m_d3dContext.Get(), m_states, m_worldBall[i], m_view, m_proj);
+	}
+
 	m_Batch->Begin();
 
-	VertexPositionColor v1(Vector3(0.f, 0.5f, 0.5f), Colors::Aqua);
+	/*VertexPositionColor v1(Vector3(0.f, 0.5f, 0.5f), Colors::Aqua);
 	VertexPositionColor v2(Vector3(0.5f, -0.5f, 0.5f), Colors::Aqua);
 	VertexPositionColor v3(Vector3(-0.5f, -0.5f, 0.5f), Colors::Yellow);
 
-	m_Batch->DrawTriangle(v1, v2, v3);
+	m_Batch->DrawTriangle(v1, v2, v3);*/
 
 	m_Batch->End();
 
