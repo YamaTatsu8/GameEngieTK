@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "Game.h"
+#include "time.h"
 
 extern void ExitGame();
 
@@ -47,6 +48,8 @@ Game::Game() :
 // Initialize the Direct3D resources required to run.
 void Game::Initialize(HWND window, int width, int height)
 {
+	srand((unsigned int)time(NULL));
+
     m_window = window;
     m_outputWidth = std::max(width, 1);
     m_outputHeight = std::max(height, 1);
@@ -95,13 +98,50 @@ void Game::Initialize(HWND window, int width, int height)
 	m_factory->SetDirectory(L"Resources");
 
 	//モデルの読み込み
-	m_Ground = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Ground1m.cmo", *m_factory);
+	m_Ground = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Ground200m.cmo", *m_factory);
 	//背景
 	m_Skydome = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Skydome.cmo", *m_factory);
 	//球
-
-	
 	m_ball = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/ball.cmo", *m_factory);
+	//ティーポッド
+	m_Tea = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Tea.cmo", *m_factory);
+
+	//
+	m_Tank = Model::CreateFromCMO(m_d3dDevice.Get(), L"Resources/Tank.cmo", *m_factory);
+
+	cnt = 0;
+
+	tank_angle = 0.0f;
+
+	m_keyboard = std::make_unique<Keyboard>();
+
+	m_rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+
+	m_rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+
+	m_rotmaty = Matrix::CreateRotationY(XMConvertToRadians(0.0f));
+
+	//for (int i = 0; i < MAX_BALL; i++)
+	//{
+	//	int rad = rand() % 360;
+	//	float distance = rand() % 100;
+
+	//	Matrix scalemat = Matrix::CreateScale(1.0f);
+
+	//	//ロール
+	//	Matrix rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+	//	//ピッチ(仰角）
+	//	Matrix rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+	//	//ヨー(方位角)
+	//	Matrix rotmaty = Matrix::CreateRotationY(XMConvertToRadians(0.0f));
+	//	//回転行列(合成)
+	//	Matrix rotmat = rotmatz*rotmatx*rotmaty;
+	//	
+	//	m_transmat[i] = Matrix::CreateTranslation(cosf(XMConvertToRadians(rad))*distance, 0.0f, sinf(XMConvertToRadians(rad))*distance);
+
+	//	m_worldTea[i] = rotmat*m_transmat[i]*scalemat;
+
+	//}
 
 }
 
@@ -130,34 +170,105 @@ void Game::Update(DX::StepTimer const& timer)
 	//view行列を取得
 	m_view = m_debugCamera->GetCameraMatrix();
 
-	for (int i = 0; i < MAX_BALL; i++)
-	{
-		//球のワールド行列を計算
-		//スケーリング(縮尺）
-		Matrix scalemat = Matrix::CreateScale(1.0f);
-		//ロール
-		Matrix rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
-		//ピッチ(仰角）
-		Matrix rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
-		//ヨー(方位角)
-		Matrix rotmaty = Matrix::CreateRotationY(XMConvertToRadians(36.0f*i));
-		//回転行列(合成)
-		Matrix rotmat = rotmatz*rotmatx*rotmaty;
-		//平行移動
-		Matrix transmat;
-		if (i<10)
-		{
-			transmat = Matrix::CreateTranslation(32.0f, 0.0f, 20.0f);
-		}
-		else
-		{
-			transmat = Matrix::CreateTranslation(32.0f, 0.0f, 40.0f);
-		}
-		
+	//タンクの移動処理
 
-		m_worldBall[i] = transmat*rotmat*scalemat;
+	//キー入力の更新
+	Keyboard::State kb = m_keyboard->GetState();
+	//Wキーが押されていたら
+	if (kb.W)
+	{
+		//移動ベクトル(Z座標全身)
+		Vector3 moveV(0, 0, 0.1f);
+		//移動量ベクトルを自機の角度分回転させる
+		moveV = Vector3::TransformNormal(moveV, m_rotmat);
+		//自機の座標を移動
+		tank_pos += moveV;
+	}
+	else if (kb.S)
+	{
+		//移動ベクトル(Z座標全身)
+		Vector3 moveV(0, 0, -0.1f);
+		//移動量ベクトルを自機の角度分回転させる
+		moveV = Vector3::TransformNormal(moveV, m_rotmat);
+		//自機の座標を移動
+		tank_pos += moveV;
+	}
+	else if (kb.A)
+	{
+		tank_angle += 0.5f;
+
+		m_rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+
+		m_rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+
+		m_rotmaty = Matrix::CreateRotationY(XMConvertToRadians(tank_angle));
 
 	}
+	else if (kb.D)
+	{
+		tank_angle -= 0.5f;
+
+		m_rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+
+		m_rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+
+		m_rotmaty = Matrix::CreateRotationY(XMConvertToRadians(tank_angle));
+
+	}
+
+	//自機のワールド行列を計算する処理
+	m_rotmat = m_rotmatz*m_rotmatx*m_rotmaty;
+	Matrix transmat = Matrix::CreateTranslation(tank_pos);
+	
+	m_worldTank = m_rotmat*transmat;
+
+
+	//for (int i = 0; i < MAX_BALL; i++)
+	//{
+	//	
+	//	Matrix scalemat = Matrix::CreateScale(1.0f);
+	//	//ロール
+	//	Matrix rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+	//	//ピッチ(仰角）
+	//	Matrix rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+	//	//ヨー(方位角)
+	//	Matrix rotmaty = Matrix::CreateRotationY(XMConvertToRadians(cnt));
+	//	//回転行列(合成)
+	//	Matrix rotmat = rotmatz*rotmatx*rotmaty;
+	//	m_worldTea[i] = rotmat*m_transmat[i] * scalemat;
+	//}
+
+	cnt++;
+
+	//for (int i = 0; i < MAX_BALL; i++)
+	//{
+	//	//球のワールド行列を計算
+	//	//スケーリング(縮尺）
+	//	Matrix scalemat = Matrix::CreateScale(1.0f);
+	//	//ロール
+	//	Matrix rotmatz = Matrix::CreateRotationZ(XMConvertToRadians(0.0f));
+	//	//ピッチ(仰角）
+	//	Matrix rotmatx = Matrix::CreateRotationX(XMConvertToRadians(0.0f));
+	//	//ヨー(方位角)
+	//	Matrix rotmaty = Matrix::CreateRotationY(XMConvertToRadians(36.0f*i));
+	//	//回転行列(合成)
+	//	Matrix rotmat = rotmatz*rotmatx*rotmaty;
+	//	//平行移動
+	//	Matrix transmat;
+	//	if (i<10)
+	//	{
+	//		transmat = Matrix::CreateTranslation(32.0f, 0.0f, 20.0f);
+	//	}
+	//	else
+	//	{
+	//		transmat = Matrix::CreateTranslation(32.0f, 0.0f, 40.0f);
+	//	}
+	//	
+	//	m_worldBall[i] = transmat*rotmat*scalemat;
+	//}
+
+	
+
 }
 
 // Draws the scene.
@@ -186,24 +297,22 @@ void Game::Render()
 	m_d3dContext->IASetInputLayout(m_inputLayout.Get());
 
 	//モデルの描画
-	m_Ground->Draw(m_d3dContext.Get(), m_states, m_world, m_view, m_proj);
+	m_Ground->Draw(m_d3dContext.Get(), m_states, Matrix::Identity , m_view, m_proj);
 
 	m_Skydome->Draw(m_d3dContext.Get(), m_states, m_world, m_view, m_proj);
 
-	for (int i = 0; i < MAX_BALL; i++)
+	/*for (int i = 0; i < MAX_BALL; i++)
 	{
-		m_ball->Draw(m_d3dContext.Get(), m_states, m_worldBall[i], m_view, m_proj);
-	}
+		m_Tea->Draw(m_d3dContext.Get(), m_states, m_worldTea[i], m_view, m_proj);
+	}*/
+
+	m_Tank->Draw(m_d3dContext.Get(), m_states, m_worldTank, m_view, m_proj);
 
 	m_Batch->Begin();
 
-	/*VertexPositionColor v1(Vector3(0.f, 0.5f, 0.5f), Colors::Aqua);
-	VertexPositionColor v2(Vector3(0.5f, -0.5f, 0.5f), Colors::Aqua);
-	VertexPositionColor v3(Vector3(-0.5f, -0.5f, 0.5f), Colors::Yellow);
-
-	m_Batch->DrawTriangle(v1, v2, v3);*/
-
 	m_Batch->End();
+
+
 
     Present();
 }

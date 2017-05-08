@@ -12,6 +12,7 @@
 #include <CommonStates.h>
 #include <SimpleMath.h>
 #include <Model.h>
+#include <Keyboard.h>
 
 const int MAX_BALL = 20;
 
@@ -79,6 +80,11 @@ private:
 	DirectX::SimpleMath::Matrix m_world;
 	DirectX::SimpleMath::Matrix m_view;
 	DirectX::SimpleMath::Matrix m_proj;
+	DirectX::SimpleMath::Matrix m_transmat[MAX_BALL];
+
+	int cnt;
+
+	float tank_angle;
 
 	//エフェクト
 	std::unique_ptr<DirectX::EffectFactory> m_factory;
@@ -89,11 +95,30 @@ private:
 	std::unique_ptr<DirectX::Model>m_Skydome;
 	//球
 	std::unique_ptr<DirectX::Model>m_ball;
+	//ティーカップ
+	std::unique_ptr<DirectX::Model>m_Tea;
+	//タンク
+	std::unique_ptr<DirectX::Model>m_Tank;
 
 	//球のワールド行列
 	DirectX::SimpleMath::Matrix m_worldBall[MAX_BALL];
+	//
+	DirectX::SimpleMath::Matrix m_worldTea[MAX_BALL];
 
 	//デバッグカメラ
 	std::unique_ptr<DebugCamera> m_debugCamera;
+	//キーボード
+	std::unique_ptr<DirectX::Keyboard>m_keyboard;
+	//自機の座標
+	DirectX::SimpleMath::Vector3 tank_pos;
+	//自機のワールド行列
+	DirectX::SimpleMath::Matrix m_worldTank;
 
+	DirectX::SimpleMath::Matrix m_rotmatz;
+
+	DirectX::SimpleMath::Matrix m_rotmatx;
+
+	DirectX::SimpleMath::Matrix m_rotmaty;
+
+	DirectX::SimpleMath::Matrix m_rotmat;
 };
